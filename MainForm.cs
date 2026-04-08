@@ -1568,7 +1568,6 @@ namespace SystemMonitorApp
                     }
                 }
             }
-
             int renamed = 0;
             QBLog("📂 Discovering installation folders...");
             
@@ -1581,23 +1580,65 @@ namespace SystemMonitorApp
                 verStrings.Add((yInt - 2000).ToString() + ".0");
             }
 
+            // Detect multiple versions to avoid breaking shared folders
+            var installBasePaths = new[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+            };
+            var distinctVersionsFound = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bp in installBasePaths) {
+                string iPath = Path.Combine(bp, "Intuit");
+                if (Directory.Exists(iPath)) {
+                    foreach (var d in Directory.GetDirectories(iPath)) {
+                        string dName = Path.GetFileName(d);
+                        if (dName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            // Try to extract a year-like string (2018-2026)
+                            var match = System.Text.RegularExpressions.Regex.Match(dName, @"(20\d{2})");
+                            if (match.Success) distinctVersionsFound.Add(match.Value);
+                            else distinctVersionsFound.Add(dName); // Fallback to full name if no year found
+                        }
+                    }
+                }
+            }
+            bool isMultipleVersions = (year == "Unknown/All") ? false : (distinctVersionsFound.Count > 1);
+            if (isMultipleVersions) QBLog($"    ℹ Multiple versions detected ({string.Join(", ", distinctVersionsFound)}). Selective cleanup enabled.");
+
             // Universal Base Paths
             var basePathsList = new System.Collections.Generic.List<string>();
             try {
                 string progData = Environment.GetEnvironmentVariable("ProgramData");
                 if (!string.IsNullOrEmpty(progData)) basePathsList.Add(Path.Combine(progData, "Intuit"));
-                
                 basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Intuit"));
                 basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Intuit"));
-                
                 basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Intuit"));
                 basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Intuit"));
                 
+                // Common Files folders - These are the ones we treat conditionally
                 string commonFiles = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles);
-                if (!string.IsNullOrEmpty(commonFiles)) basePathsList.Add(Path.Combine(commonFiles, "Intuit"));
-                
+                if (!string.IsNullOrEmpty(commonFiles)) {
+                    string intuitCommon = Path.Combine(commonFiles, "Intuit");
+                    if (Directory.Exists(intuitCommon)) {
+                        if (!isMultipleVersions) pathsToRename.Add(intuitCommon); // Rename whole Intuit folder
+                        else basePathsList.Add(intuitCommon); // Scan inside Intuit folder
+                    }
+                }
                 string commonFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86);
-                if (!string.IsNullOrEmpty(commonFilesX86)) basePathsList.Add(Path.Combine(commonFilesX86, "Intuit"));
+                if (!string.IsNullOrEmpty(commonFilesX86)) {
+                    string intuitCommonX86 = Path.Combine(commonFilesX86, "Intuit");
+                    if (Directory.Exists(intuitCommonX86)) {
+                        if (!isMultipleVersions) pathsToRename.Add(intuitCommonX86); // Rename whole Intuit folder
+                        else basePathsList.Add(intuitCommonX86); // Scan inside Intuit folder
+                    }
+                }
+
+                // ProgramData\Common Files
+                if (!string.IsNullOrEmpty(progData)) {
+                    string pdCommon = Path.Combine(progData, @"Common Files\Intuit");
+                    if (Directory.Exists(pdCommon)) {
+                        if (!isMultipleVersions) pathsToRename.Add(pdCommon);
+                        else basePathsList.Add(pdCommon);
+                    }
+                }
             } catch (Exception ex) { QBLog($"    ⚠ Error mapping base paths: {ex.Message}"); }
 
             foreach (var bp in basePathsList) {
