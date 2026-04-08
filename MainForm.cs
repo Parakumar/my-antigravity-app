@@ -1595,9 +1595,12 @@ namespace SystemMonitorApp
 
             // Map Year to Version strings (Pro/Premier: Year-1990, Enterprise: Year-2000)
             var verStrings = new System.Collections.Generic.List<string>();
+            var shortVers = new System.Collections.Generic.List<string>();
             if (int.TryParse(year, out int yInt)) {
-                verStrings.Add((yInt - 1990).ToString() + ".0");
-                verStrings.Add((yInt - 2000).ToString() + ".0");
+                string vPro = (yInt - 1990).ToString();
+                string vEnt = (yInt - 2000).ToString();
+                verStrings.Add(vPro + ".0"); verStrings.Add(vEnt + ".0");
+                shortVers.Add(vPro); shortVers.Add(vEnt);
             }
 
             // Detect multiple versions to avoid breaking shared folders
@@ -1682,13 +1685,17 @@ namespace SystemMonitorApp
                         string name = Path.GetFileName(dir);
                         bool match = false;
                         if (year == "Unknown/All") {
-                            if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
+                            if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
                         } else {
-                            bool hasQB = name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0;
+                            bool hasQB = name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0;
                             bool hasYear = name.IndexOf(year, StringComparison.OrdinalIgnoreCase) >= 0;
                             bool hasVer = verStrings.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
+                            bool hasShortVer = shortVers.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
                             
-                            if (hasQB && (hasYear || hasVer)) match = true;
+                            // Inside Intuit folder, match Year or Version even without "QuickBooks" prefix
+                            if (hasYear || hasVer || hasShortVer) match = true;
+                            // Otherwise require QB prefix
+                            else if (hasQB && (hasYear || hasVer)) match = true;
                         }
 
                         if (match && !name.EndsWith(".old", StringComparison.OrdinalIgnoreCase) && name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) < 0) {
