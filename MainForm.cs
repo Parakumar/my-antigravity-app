@@ -1574,9 +1574,12 @@ namespace SystemMonitorApp
             
             var pathsToRename = new System.Collections.Generic.List<string>();
 
-            // Map Year to Version (2024 -> 34.0, etc.)
-            string verStr = "";
-            if (int.TryParse(year, out int yInt)) verStr = (yInt - 1990).ToString() + ".0";
+            // Map Year to Version strings (Pro/Premier: Year-1990, Enterprise: Year-2000)
+            var verStrings = new System.Collections.Generic.List<string>();
+            if (int.TryParse(year, out int yInt)) {
+                verStrings.Add((yInt - 1990).ToString() + ".0");
+                verStrings.Add((yInt - 2000).ToString() + ".0");
+            }
 
             // Universal Base Paths
             var basePathsList = new System.Collections.Generic.List<string>();
@@ -1606,12 +1609,17 @@ namespace SystemMonitorApp
                         string name = Path.GetFileName(dir);
                         bool match = false;
                         if (year == "Unknown/All") {
-                            if (name.Contains("QuickBooks")) match = true;
+                            if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
                         } else {
-                            if (name.Contains("QuickBooks") && (name.Contains(year) || (!string.IsNullOrEmpty(verStr) && name.Contains(verStr)))) match = true;
+                            bool hasQB = name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0;
+                            bool hasYear = name.IndexOf(year, StringComparison.OrdinalIgnoreCase) >= 0;
+                            bool hasVer = verStrings.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
+                            
+                            if (hasQB && (hasYear || hasVer)) match = true;
                         }
 
-                        if (match && !name.EndsWith(".old") && !name.Contains("Tool Hub")) {
+                        if (match && !name.EndsWith(".old", StringComparison.OrdinalIgnoreCase) && name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) < 0) {
+                            QBLog($"    ⭐ Found: {name}");
                             pathsToRename.Add(dir);
                         }
                     }
