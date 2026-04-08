@@ -1523,6 +1523,14 @@ namespace SystemMonitorApp
 
             // Auto Uninstall QuickBooks
             QBLog("🗑 Uninstalling QuickBooks...");
+            
+            // Version strings for matching (e.g. 2024 -> 34.0, 24.0)
+            var vStrs = new System.Collections.Generic.List<string>();
+            if (int.TryParse(year, out int yI)) {
+                vStrs.Add((yI - 1990).ToString() + ".0"); // Pro/Prem
+                vStrs.Add((yI - 2000).ToString() + ".0"); // Enterprise
+            }
+
             var keys = new[] {
                 Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
                 Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
@@ -1538,17 +1546,29 @@ namespace SystemMonitorApp
                     {
                         if (subKey == null) continue;
                         var displayName = subKey.GetValue("DisplayName")?.ToString();
-                        
-                        if (!string.IsNullOrEmpty(displayName) && displayName.Contains("QuickBooks") && !displayName.Contains("Tool Hub") && (year == "Unknown/All" || displayName.Contains(year)))
+                        if (string.IsNullOrEmpty(displayName)) continue;
+
+                        bool match = false;
+                        if (year == "Unknown/All") {
+                            if (displayName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
+                        } else {
+                            bool hasQB = displayName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0;
+                            bool hasYear = displayName.IndexOf(year, StringComparison.OrdinalIgnoreCase) >= 0;
+                            bool hasVer = vStrs.Exists(v => displayName.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
+                            if (hasQB && (hasYear || hasVer)) match = true;
+                        }
+
+                        if (match && displayName.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) < 0)
                         {
                             var uninstallString = subKey.GetValue("UninstallString")?.ToString();
                             if (!string.IsNullOrEmpty(uninstallString))
                             {
                                 QBLog($"    ⚙ Found: {displayName}");
                                 try {
-                                    if (uninstallString.ToLower().StartsWith("msiexec")) {
-                                        uninstallString = uninstallString.Replace("/I", "/X").Replace("/i", "/X");
-                                        uninstallString += " /passive /norestart";
+                                    if (uninstallString.IndexOf("msiexec", StringComparison.OrdinalIgnoreCase) >= 0) {
+                                        uninstallString = System.Text.RegularExpressions.Regex.Replace(uninstallString, "/[Ii]", "/X", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                        if (uninstallString.IndexOf("/passive", StringComparison.OrdinalIgnoreCase) < 0)
+                                            uninstallString += " /passive /norestart";
                                     }
                                     QBLog($"    ▶ Executing sequence...");
                                     var pInfo = new ProcessStartInfo("cmd.exe", $"/c {uninstallString}") {
@@ -1557,8 +1577,8 @@ namespace SystemMonitorApp
                                     };
                                     using (var p = Process.Start(pInfo)) {
                                         p.WaitForExit();
-                                        QBLog($"    ✔ Uninstalled {displayName} (Exit Code: {p.ExitCode})");
-                                        uninstalledCount++;
+                                        QBLog($"    ✔ Exit Code: {p.ExitCode}");
+                                        if (p.ExitCode == 0 || p.ExitCode == 1641 || p.ExitCode == 3010) uninstalledCount++;
                                     }
                                 } catch (Exception ex) {
                                     QBLog($"    ⚠ Failed to uninstall {displayName}: {ex.Message}");
