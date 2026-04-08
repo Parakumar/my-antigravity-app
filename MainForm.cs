@@ -1569,12 +1569,8 @@ namespace SystemMonitorApp
                 }
             }
 
-            if (uninstalledCount == 0) {
-                QBLog($"    ⚪ No matching QuickBooks {year} installations found in Registry.");
-            }
-
             int renamed = 0;
-            QBLog("📂 Discovering and renaming installation folders to .old...");
+            QBLog("📂 Discovering installation folders...");
             
             var pathsToRename = new System.Collections.Generic.List<string>();
 
@@ -1582,19 +1578,28 @@ namespace SystemMonitorApp
             string verStr = "";
             if (int.TryParse(year, out int yInt)) verStr = (yInt - 1990).ToString() + ".0";
 
-            string[] basePaths = {
-                @"C:\ProgramData\Intuit",
-                @"C:\Program Files\Intuit",
-                @"C:\Program Files (x86)\Intuit",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Intuit"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Intuit"),
-                @"C:\ProgramData\Common files\Intuit",
-                @"C:\Program Files\Common files\Intuit",
-                @"C:\Program Files (x86)\Common files\Intuit"
-            };
+            // Universal Base Paths
+            var basePathsList = new System.Collections.Generic.List<string>();
+            try {
+                string progData = Environment.GetEnvironmentVariable("ProgramData");
+                if (!string.IsNullOrEmpty(progData)) basePathsList.Add(Path.Combine(progData, "Intuit"));
+                
+                basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Intuit"));
+                basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Intuit"));
+                
+                basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Intuit"));
+                basePathsList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Intuit"));
+                
+                string commonFiles = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles);
+                if (!string.IsNullOrEmpty(commonFiles)) basePathsList.Add(Path.Combine(commonFiles, "Intuit"));
+                
+                string commonFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86);
+                if (!string.IsNullOrEmpty(commonFilesX86)) basePathsList.Add(Path.Combine(commonFilesX86, "Intuit"));
+            } catch (Exception ex) { QBLog($"    ⚠ Error mapping base paths: {ex.Message}"); }
 
-            foreach (var bp in basePaths) {
+            foreach (var bp in basePathsList) {
                 if (!Directory.Exists(bp)) continue;
+                QBLog($"    🔍 Scanning: {bp}");
                 try {
                     var dirs = Directory.GetDirectories(bp);
                     foreach (var dir in dirs) {
@@ -1603,7 +1608,6 @@ namespace SystemMonitorApp
                         if (year == "Unknown/All") {
                             if (name.Contains("QuickBooks")) match = true;
                         } else {
-                            // Match "QuickBooks" + (Year OR Version)
                             if (name.Contains("QuickBooks") && (name.Contains(year) || (!string.IsNullOrEmpty(verStr) && name.Contains(verStr)))) match = true;
                         }
 
@@ -1611,23 +1615,24 @@ namespace SystemMonitorApp
                             pathsToRename.Add(dir);
                         }
                     }
-                } catch { }
+                } catch (Exception ex) { QBLog($"    ⚠ Error scanning {bp}: {ex.Message}"); }
+            }
+
+            if (pathsToRename.Count == 0) {
+                QBLog("    ⚪ No matching folders discovered to rename.");
             }
 
             foreach (var target in pathsToRename) {
                 try {
                     if (Directory.Exists(target)) {
                         string oldPath = target + ".old";
-                        
-                        // Handle existing .old with unique numbering if needed, but here we just clear it as per original logic
                         if (Directory.Exists(oldPath)) {
-                            QBLog($"    🗑 Removing previous backup: {oldPath}");
+                            QBLog($"    🗑 Removing previous backup: {Path.GetFileName(oldPath)}");
                             try { Directory.Delete(oldPath, true); } catch { }
                         }
 
                         QBLog($"    🔄 Renaming: {Path.GetFileName(target)} -> {Path.GetFileName(oldPath)}");
                         
-                        // Simple retry logic for locked folders
                         bool success = false;
                         for (int i = 0; i < 3; i++) {
                             try {
