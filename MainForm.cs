@@ -1611,17 +1611,29 @@ namespace SystemMonitorApp
                 if (Directory.Exists(iPath)) {
                     foreach (var d in Directory.GetDirectories(iPath)) {
                         string dName = Path.GetFileName(d);
-                        if (dName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) {
+                        if (dName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 && !dName.EndsWith(".old", StringComparison.OrdinalIgnoreCase)) {
                             // Try to extract a year-like string (2018-2026)
-                            var match = System.Text.RegularExpressions.Regex.Match(dName, @"(20\d{2})");
-                            if (match.Success) distinctVersionsFound.Add(match.Value);
-                            else distinctVersionsFound.Add(dName); // Fallback to full name if no year found
+                            var yearMatch = System.Text.RegularExpressions.Regex.Match(dName, @"(20\d{2})");
+                            if (yearMatch.Success) {
+                                distinctVersionsFound.Add(yearMatch.Value);
+                            } else {
+                                // Try version number like 24.0 (Enterprise Solutions 24.0) or 34.0
+                                var verMatch = System.Text.RegularExpressions.Regex.Match(dName, @"(\d{2})\.0");
+                                if (verMatch.Success) {
+                                    int v = int.Parse(verMatch.Groups[1].Value);
+                                    if (v >= 28) distinctVersionsFound.Add((1990 + v).ToString()); // Pro/Prem mapping
+                                    else if (v >= 18) distinctVersionsFound.Add((2000 + v).ToString()); // Ent mapping
+                                } else {
+                                    distinctVersionsFound.Add(dName); // Fallback
+                                }
+                            }
                         }
                     }
                 }
             }
             bool isMultipleVersions = (year == "Unknown/All") ? false : (distinctVersionsFound.Count > 1);
-            if (isMultipleVersions) QBLog($"    ℹ Multiple versions detected ({string.Join(", ", distinctVersionsFound)}). Selective cleanup enabled.");
+            if (isMultipleVersions) QBLog($"    ℹ Multiple active versions detected ({string.Join(", ", distinctVersionsFound)}). Selective cleanup enabled.");
+            else QBLog($"    ℹ Single active version detected. Full system cleanup enabled.");
 
             // Universal Base Paths
             var basePathsList = new System.Collections.Generic.List<string>();
