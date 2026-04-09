@@ -1683,6 +1683,15 @@ namespace SystemMonitorApp
                     var dirs = Directory.GetDirectories(bp);
                     foreach (var dir in dirs) {
                         string name = Path.GetFileName(dir);
+                        if (name.EndsWith(".old", StringComparison.OrdinalIgnoreCase)) {
+                            QBLog($"    ⚪ Skipped (Backup): {name}");
+                            continue;
+                        }
+                        if (name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            QBLog($"    ⚪ Skipped (Tool Hub): {name}");
+                            continue;
+                        }
+
                         bool match = false;
                         if (year == "Unknown/All") {
                             if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
@@ -1692,15 +1701,15 @@ namespace SystemMonitorApp
                             bool hasVer = verStrings.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
                             bool hasShortVer = shortVers.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
                             
-                            // Inside Intuit folder, match Year or Version even without "QuickBooks" prefix
                             if (hasYear || hasVer || hasShortVer) match = true;
-                            // Otherwise require QB prefix
                             else if (hasQB && (hasYear || hasVer)) match = true;
                         }
 
-                        if (match && !name.EndsWith(".old", StringComparison.OrdinalIgnoreCase) && name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) < 0) {
+                        if (match) {
                             QBLog($"    ⭐ Found: {name}");
                             pathsToRename.Add(dir);
+                        } else if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            QBLog($"    ⚪ Skipped (No Match): {name}");
                         }
                     }
                 } catch (Exception ex) { QBLog($"    ⚠ Error scanning {bp}: {ex.Message}"); }
