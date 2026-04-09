@@ -1742,19 +1742,9 @@ namespace SystemMonitorApp
             _qbStatus.Text = $"● DONE (Renamed {renamed})";
             _qbStatus.ForeColor = SuccessGrn;
             
-            var result = MessageBox.Show(
-                $"Step 1: Folder renaming complete ({renamed} folders renamed).\n\nWould you like to automatically download and reinstall QuickBooks {year} now?",
-                "Clean Prep Done", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result != DialogResult.Yes) return;
-
-            // Collect license info
-            string licenseNum = InputDialog.Show("LICENSE NUMBER", "Enter your QuickBooks License Number (e.g. 1234-5678-9012-3456):");
-            if (string.IsNullOrWhiteSpace(licenseNum)) return;
-            string productCode = InputDialog.Show("PRODUCT CODE", "Enter your QuickBooks Product Code (e.g. 123-456):");
-            if (string.IsNullOrWhiteSpace(productCode)) return;
-
-            LaunchQBDownloader(licenseNum, productCode);
+            MessageBox.Show(
+                $"Step 1: Folder renaming complete ({renamed} folders renamed).\n\nQuickBooks Clean Prep is now finished.",
+                "Clean Prep Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void LaunchQBDownloader(string licenseNum, string productCode)
