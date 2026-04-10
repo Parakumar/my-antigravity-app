@@ -1666,14 +1666,6 @@ namespace SystemMonitorApp
                     }
                 }
 
-                // ProgramData\Common Files
-                if (!string.IsNullOrEmpty(progData)) {
-                    string pdCommon = Path.Combine(progData, @"Common Files\Intuit");
-                    if (Directory.Exists(pdCommon)) {
-                        if (!isMultipleVersions) pathsToRename.Add(pdCommon);
-                        else basePathsList.Add(pdCommon);
-                    }
-                }
             } catch (Exception ex) { QBLog($"    ⚠ Error mapping base paths: {ex.Message}"); }
 
             foreach (var bp in basePathsList) {
