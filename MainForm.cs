@@ -1039,6 +1039,38 @@ namespace SystemMonitorApp
             } catch {}
         }
 
+        private void ForceDeleteDirectory(string targetDir)
+        {
+            var di = new DirectoryInfo(targetDir);
+            if (!di.Exists) return;
+
+            foreach (var dir in di.EnumerateDirectories()) {
+                ForceDeleteDirectory(dir.FullName);
+            }
+
+            foreach (var file in di.EnumerateFiles()) {
+                file.Attributes = FileAttributes.Normal;
+                for (int i = 0; i < 3; i++) {
+                    try { file.Delete(); break; } catch { System.Threading.Thread.Sleep(200); }
+                }
+            }
+
+            di.Attributes = FileAttributes.Normal;
+            for (int i = 0; i < 3; i++) {
+                try { di.Delete(); break; } catch { System.Threading.Thread.Sleep(200); }
+            }
+        }
+
+        private void ForceDeleteFile(string targetFile)
+        {
+            var fi = new FileInfo(targetFile);
+            if (!fi.Exists) return;
+            fi.Attributes = FileAttributes.Normal;
+            for (int i = 0; i < 3; i++) {
+                try { fi.Delete(); break; } catch { System.Threading.Thread.Sleep(200); }
+            }
+        }
+
         private void SafeInvoke(Action act)
         {
             if (IsHandleCreated) 
@@ -1071,8 +1103,10 @@ namespace SystemMonitorApp
                 try {
                     if (type.Contains("Folder")) {
                         if (Directory.Exists(path)) {
-                            Directory.Delete(path, true);
-                            deleted++;
+                            ForceDeleteDirectory(path);
+                            // Verify deletion succeeded before counting
+                            if (!Directory.Exists(path)) deleted++;
+                            else failed++;
                         }
                     } else if (type.Contains("Registry")) {
                         if (path.StartsWith(@"HKLM\")) {
@@ -1082,8 +1116,10 @@ namespace SystemMonitorApp
                         }
                     } else if (type.Contains("File")) {
                         if (File.Exists(path)) {
-                            File.Delete(path);
-                            deleted++;
+                            ForceDeleteFile(path);
+                            // Verify deletion succeeded before counting
+                            if (!File.Exists(path)) deleted++;
+                            else failed++;
                         }
                     }
                 } catch { failed++; }
