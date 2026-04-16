@@ -1483,7 +1483,7 @@ namespace SystemMonitorApp
 
             groupClean.Controls.Add(FL("Version Year:", new Point(260, 45), 8.5f, FontStyle.Regular, TextPrimary));
             _qbYearCombo = new ComboBox { Location = new Point(260, 65), Width = 100, BackColor = Color.White, ForeColor = Color.FromArgb(17, 24, 39), FlatStyle = FlatStyle.Flat };
-            _qbYearCombo.Items.AddRange(new string[] { "2018", "2019", "2020", "2021", "2022", "2023", "2024", "Unknown/All" });
+            _qbYearCombo.Items.AddRange(new string[] { "2018", "2019", "2020", "2021", "2022", "2023", "2024", "All Versions (Clean All)" });
             _qbYearCombo.SelectedIndex = 6; // Default to 2024
 
             var btnPrep = MkBtn("Run Clean Prep (Rename Folders)", new Point(15, 110), CoralRed);
@@ -1585,7 +1585,7 @@ namespace SystemMonitorApp
                         if (string.IsNullOrEmpty(displayName)) continue;
 
                         bool match = false;
-                        if (year == "Unknown/All") {
+                        if (year == "All Versions (Clean All)") {
                             if (displayName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
                         } else {
                             bool hasQB = displayName.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -1670,7 +1670,7 @@ namespace SystemMonitorApp
                     }
                 }
             }
-            bool isMultipleVersions = (year == "Unknown/All") ? false : (distinctVersionsFound.Count > 1);
+            bool isMultipleVersions = (year == "All Versions (Clean All)") ? false : (distinctVersionsFound.Count > 1);
             if (isMultipleVersions) QBLog($"    ℹ Multiple active versions detected ({string.Join(", ", distinctVersionsFound)}). Selective cleanup enabled.");
             else QBLog($"    ℹ Single active version detected. Full system cleanup enabled.");
 
@@ -1704,26 +1704,31 @@ namespace SystemMonitorApp
 
             } catch (Exception ex) { QBLog($"    ⚠ Error mapping base paths: {ex.Message}"); }
 
-            foreach (var bp in basePathsList) {
-                if (!Directory.Exists(bp)) continue;
-                QBLog($"    🔍 Scanning: {bp}");
-                try {
-                    var dirs = Directory.GetDirectories(bp);
-                    foreach (var dir in dirs) {
-                        string name = Path.GetFileName(dir);
-                        if (name.EndsWith(".old", StringComparison.OrdinalIgnoreCase)) {
-                            QBLog($"    ⚪ Skipped (Backup): {name}");
-                            continue;
-                        }
-                        if (name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) >= 0) {
-                            QBLog($"    ⚪ Skipped (Tool Hub): {name}");
-                            continue;
-                        }
+            if (year == "All Versions (Clean All)") {
+                foreach (var bp in basePathsList) {
+                    if (Directory.Exists(bp)) {
+                        QBLog($"    ⭐ Found Root Directory: {bp}");
+                        pathsToRename.Add(bp);
+                    }
+                }
+            } else {
+                foreach (var bp in basePathsList) {
+                    if (!Directory.Exists(bp)) continue;
+                    QBLog($"    🔍 Scanning: {bp}");
+                    try {
+                        var dirs = Directory.GetDirectories(bp);
+                        foreach (var dir in dirs) {
+                            string name = Path.GetFileName(dir);
+                            if (name.EndsWith(".old", StringComparison.OrdinalIgnoreCase)) {
+                                QBLog($"    ⚪ Skipped (Backup): {name}");
+                                continue;
+                            }
+                            if (name.IndexOf("Tool Hub", StringComparison.OrdinalIgnoreCase) >= 0) {
+                                QBLog($"    ⚪ Skipped (Tool Hub): {name}");
+                                continue;
+                            }
 
-                        bool match = false;
-                        if (year == "Unknown/All") {
-                            if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0) match = true;
-                        } else {
+                            bool match = false;
                             bool hasQB = name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0;
                             bool hasYear = name.IndexOf(year, StringComparison.OrdinalIgnoreCase) >= 0;
                             bool hasVer = verStrings.Exists(v => name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0);
@@ -1731,16 +1736,16 @@ namespace SystemMonitorApp
                             
                             if (hasYear || hasVer || hasShortVer) match = true;
                             else if (hasQB && (hasYear || hasVer)) match = true;
-                        }
 
-                        if (match) {
-                            QBLog($"    ⭐ Found: {name}");
-                            pathsToRename.Add(dir);
-                        } else if (name.IndexOf("QuickBooks", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("QB", StringComparison.OrdinalIgnoreCase) >= 0) {
-                            QBLog($"    ⚪ Skipped (No Match): {name}");
+                            if (match) {
+                                QBLog($"    ⭐ Found: {name}");
+                                pathsToRename.Add(dir);
+                            } else if (hasQB) {
+                                QBLog($"    ⚪ Skipped (No Match): {name}");
+                            }
                         }
-                    }
-                } catch (Exception ex) { QBLog($"    ⚠ Error scanning {bp}: {ex.Message}"); }
+                    } catch (Exception ex) { QBLog($"    ⚠ Error scanning {bp}: {ex.Message}"); }
+                }
             }
 
             if (pathsToRename.Count == 0) {
