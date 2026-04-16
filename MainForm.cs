@@ -1477,21 +1477,21 @@ namespace SystemMonitorApp
             groupClean.Controls.Add(FL("⚡ CLEAN INSTALL PREPARATION", new Point(15, 15), 9f, FontStyle.Bold, CoralRed));
             
             groupClean.Controls.Add(FL("QuickBooks Edition:", new Point(15, 45), 8.5f, FontStyle.Regular, TextPrimary));
-            _qbTypeCombo = new ComboBox { Location = new Point(15, 65), Width = 230, DropDownWidth = 350, BackColor = Color.White, ForeColor = Color.FromArgb(17, 24, 39), FlatStyle = FlatStyle.Flat };
-            _qbTypeCombo.Items.AddRange(new string[] { "QuickBooks Desktop Pro", "QuickBooks Desktop Premier", "QuickBooks Desktop Enterprise" });
-            _qbTypeCombo.SelectedIndex = 0;
+            _qbTypeCombo = new ComboBox { Location = new Point(15, 65), Width = 350, DropDownWidth = 350, BackColor = Color.White, ForeColor = Color.FromArgb(17, 24, 39), FlatStyle = FlatStyle.Flat };
+            _qbTypeCombo.Items.AddRange(new string[] { "QuickBooks Desktop Pro", "QuickBooks Desktop Premier", "QuickBooks Desktop Enterprise", "All Editions (Clean All)" });
+            _qbTypeCombo.SelectedIndex = 3;
 
-            groupClean.Controls.Add(FL("Version Year:", new Point(260, 45), 8.5f, FontStyle.Regular, TextPrimary));
-            _qbYearCombo = new ComboBox { Location = new Point(260, 65), Width = 100, BackColor = Color.White, ForeColor = Color.FromArgb(17, 24, 39), FlatStyle = FlatStyle.Flat };
+            groupClean.Controls.Add(FL("Version Year:", new Point(15, 100), 8.5f, FontStyle.Regular, TextPrimary));
+            _qbYearCombo = new ComboBox { Location = new Point(15, 120), Width = 350, DropDownWidth = 350, BackColor = Color.White, ForeColor = Color.FromArgb(17, 24, 39), FlatStyle = FlatStyle.Flat };
             _qbYearCombo.Items.AddRange(new string[] { "2018", "2019", "2020", "2021", "2022", "2023", "2024", "All Versions (Clean All)" });
             _qbYearCombo.SelectedIndex = 6; // Default to 2024
 
-            var btnPrep = MkBtn("Run Clean Prep (Rename Folders)", new Point(15, 110), CoralRed);
+            var btnPrep = MkBtn("Run Clean Prep (Rename Folders)", new Point(15, 165), CoralRed);
             btnPrep.Width = 350;
             btnPrep.Click += (s, e) => ExecuteQBPrep();
 
-            var cleanNote = FL("Critical: Uninstall QuickBooks via Control Panel FIRST. This tool automates the renaming of residual folders to .OLD to prevent corruption in fresh installs.", new Point(15, 150), 8.5f, FontStyle.Italic, AmberClr);
-            cleanNote.AutoSize = false; cleanNote.Size = new Size(350, 100);
+            var cleanNote = FL("Critical: Uninstall QuickBooks via Control Panel FIRST. This tool automates the renaming of residual folders to .OLD to prevent corruption in fresh installs.", new Point(15, 205), 8.5f, FontStyle.Italic, AmberClr);
+            cleanNote.AutoSize = false; cleanNote.Size = new Size(350, 60);
 
             groupClean.Controls.AddRange(new Control[] { _qbTypeCombo, _qbYearCombo, btnPrep, cleanNote });
 
@@ -1530,7 +1530,13 @@ namespace SystemMonitorApp
 
         private void ExecuteQBPrep()
         {
+            string qbType = _qbTypeCombo.SelectedItem?.ToString() ?? "";
             string year = _qbYearCombo.SelectedItem?.ToString() ?? "2024";
+
+            if (qbType.Contains("All") || year.Contains("All")) {
+                year = "All Versions (Clean All)";
+            }
+
             if (MessageBox.Show($"Are you sure you want to run a full Clean Install Prep for QuickBooks {year}?\n\nThis will stop all Intuit processes, execute the uninstaller, and then rename all leftover installation and Common Files folders to .old.",
                 "Confirm Clean Prep", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
