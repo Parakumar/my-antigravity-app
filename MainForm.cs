@@ -2374,7 +2374,7 @@ namespace SystemMonitorApp
                     return; 
                 } else {
                     // Managed Hand-off
-                    Process.Start($"https://acecloudhosting.wetransfer.com/?to={Uri.EscapeDataString(email)}");
+                    Process.Start($"https://sharingportal.acecloudhosting.com/?to={Uri.EscapeDataString(email)}");
                     Process.Start("explorer.exe", $"/select,\"{zipPath}\"");
                 }
 
@@ -2843,7 +2843,7 @@ namespace SystemMonitorApp
         {
             try {
                 await _wv.EnsureCoreWebView2Async();
-                _wv.CoreWebView2.Navigate("https://acecloudhosting.wetransfer.com/");
+                _wv.CoreWebView2.Navigate("https://sharingportal.acecloudhosting.com/");
                 _wv.CoreWebView2.NavigationCompleted += async (s, e) => {
                     if (e.IsSuccess) await RunPortalAutomation();
                 };
